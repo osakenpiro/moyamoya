@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>もやもやメーター — 白黒つけない意思決定ツール</title>
+<meta name="description" content="二択・多択のもやもやを、スライダーでFloat（0.0〜1.0）にほぐす意思決定ツール。白黒つけない。0.5を、許す。">
+<meta property="og:title" content="もやもやメーター">
+<meta property="og:description" content="白黒つけない、意思決定ツール。もやもやをFloatでほぐす。">
+<meta property="og:url" content="https://osakenpiro.github.io/moyamoya/">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0a0a0f">
+<style>
+  :root{
+    --void:#0a0a0f;
+    --void2:#11111a;
+    --panel:#15151f;
+    --panel2:#1b1b27;
+    --line:#2a2a38;
+    --ink:#ece9e1;
+    --ink-dim:#9b978a;
+    --ink-faint:#6b6759;
+    --gold:#d4a853;
+    --gold-soft:#e7c889;
+    --gold-deep:#a07f33;
+    --shadow:0 8px 40px rgba(0,0,0,.5);
+    --r:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--void);color:var(--ink)}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",system-ui,sans-serif;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    background:
+      radial-gradient(1px 1px at 18% 22%, rgba(255,255,255,.55), transparent),
+      radial-gradient(1px 1px at 72% 14%, rgba(255,255,255,.40), transparent),
+      radial-gradient(1px 1px at 41% 60%, rgba(255,255,255,.30), transparent),
+      radial-gradient(1.4px 1.4px at 86% 70%, rgba(231,200,137,.55), transparent),
+      radial-gradient(1px 1px at 9% 82%, rgba(255,255,255,.30), transparent),
+      radial-gradient(1px 1px at 58% 88%, rgba(255,255,255,.22), transparent),
+      radial-gradient(900px 600px at 80% -10%, rgba(212,168,83,.06), transparent),
+      var(--void);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:40px 18px 90px}
+
+  /* header */
+  header{text-align:center;margin-bottom:30px}
+  .brandmark{font-size:11px;letter-spacing:.32em;color:var(--gold);opacity:.85;text-transform:uppercase}
+  h1{
+    font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+    font-weight:600;font-size:clamp(30px,8vw,46px);letter-spacing:.04em;margin:.18em 0 .12em;
+    background:linear-gradient(180deg,#fff,var(--gold-soft) 130%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .lead{color:var(--ink-dim);font-size:14px;letter-spacing:.06em}
+  .lead b{color:var(--gold-soft);font-weight:600}
+
+  /* cards */
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:var(--r);
+    padding:18px 16px;margin-bottom:16px;box-shadow:var(--shadow);
+  }
+  .card-h{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .card-h .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+  .card-h h2{font-size:13px;letter-spacing:.14em;color:var(--ink-dim);font-weight:600;text-transform:uppercase}
+  .hint{font-size:12px;color:var(--ink-faint);margin-top:-4px;margin-bottom:10px}
+
+  /* dilemma input */
+  .dilemma{
+    width:100%;background:transparent;border:none;border-bottom:1.5px solid var(--line);
+    color:var(--ink);font-size:20px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+    padding:6px 2px 10px;letter-spacing:.03em;
+  }
+  .dilemma:focus{outline:none;border-color:var(--gold)}
+  .dilemma::placeholder{color:var(--ink-faint)}
+
+  /* options */
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opt-chip{
+    display:flex;align-items:center;gap:6px;background:var(--void2);
+    border:1px solid var(--line);border-radius:999px;padding:6px 8px 6px 12px;
+  }
+  .opt-chip input{
+    background:transparent;border:none;color:var(--ink);font-size:14px;width:auto;min-width:60px;max-width:160px;
+  }
+  .opt-chip input:focus{outline:none}
+  .opt-chip .swatch{width:9px;height:9px;border-radius:50%;flex:none}
+  .opt-x{cursor:pointer;color:var(--ink-faint);font-size:16px;line-height:1;padding:0 2px;border:none;background:none}
+  .opt-x:hover{color:var(--gold)}
+  .add-btn{
+    background:transparent;border:1px dashed var(--gold-deep);color:var(--gold-soft);
+    border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;transition:.15s;
+  }
+  .add-btn:hover{background:rgba(212,168,83,.1);border-style:solid}
+  .add-btn:disabled{opacity:.35;cursor:not-allowed}
+
+  /* criteria */
+  .crit{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--void2)}
+  .crit-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .crit-name{
+    flex:1;background:transparent;border:none;color:var(--ink);font-size:16px;font-weight:600;letter-spacing:.02em;
+    border-bottom:1px solid transparent;padding:2px 0;
+  }
+  .crit-name:focus{outline:none;border-bottom-color:var(--gold)}
+  .crit-del{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:15px}
+  .crit-del:hover{color:var(--gold)}
+  .weight-row{display:flex;align-items:center;gap:10px;margin:4px 0 12px}
+  .weight-row label{font-size:11px;color:var(--ink-faint);letter-spacing:.1em;white-space:nowrap}
+  .wval{font-size:12px;color:var(--gold-soft);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+
+  .cell{margin:9px 0}
+  .cell-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:2px}
+  .cell-name{color:var(--ink-dim);display:flex;align-items:center;gap:6px}
+  .cell-name .swatch{width:8px;height:8px;border-radius:50%}
+  .cell-val{color:var(--ink);font-variant-numeric:tabular-nums;font-size:12px}
+
+  /* range sliders */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(90deg,var(--gold-deep),var(--line))}
+  input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);margin-top:-6px;box-shadow:0 0 0 4px rgba(212,168,83,.15),0 2px 6px rgba(0,0,0,.5);transition:.1s}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(212,168,83,.15)}
+  input[type=range]:focus{outline:none}
+  input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 6px rgba(212,168,83,.22),0 2px 8px rgba(0,0,0,.6)}
+  .ends{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-faint);letter-spacing:.08em;margin-top:-2px}
+
+  /* results */
+  #results .res-row{margin:14px 0}
+  .res-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .res-name{font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px}
+  .res-name .swatch{width:10px;height:10px;border-radius:50%}
+  .res-score{font-variant-numeric:tabular-nums;font-size:15px;color:var(--gold-soft);font-weight:600}
+  .meter{height:12px;background:var(--void);border:1px solid var(--line);border-radius:999px;overflow:hidden;position:relative}
+  .meter-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold-deep),var(--gold) 60%,var(--gold-soft));transition:width .7s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 12px rgba(212,168,83,.4)}
+  .res-row.win .res-name{color:var(--gold-soft)}
+  .res-row.win .res-name::after{content:"いちばん";font-size:10px;letter-spacing:.1em;color:var(--void);background:var(--gold);padding:1px 7px;border-radius:999px;margin-left:4px;font-weight:700}
+
+  /* verdict */
+  .verdict{margin-top:18px;border-radius:12px;padding:18px 16px;text-align:center;border:1px solid var(--line);background:radial-gradient(120% 120% at 50% 0%,rgba(212,168,83,.08),transparent),var(--void2)}
+  .verdict .tag{font-size:11px;letter-spacing:.22em;color:var(--gold);text-transform:uppercase}
+  .verdict .msg{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:clamp(17px,4.5vw,21px);margin:8px 0 4px;letter-spacing:.02em;line-height:1.5}
+  .verdict .sub{font-size:13px;color:var(--ink-dim)}
+  /* float gauge for near-tie */
+  .gauge{position:relative;height:46px;margin:14px auto 4px;max-width:360px}
+  .gauge-track{position:absolute;top:20px;left:0;right:0;height:5px;border-radius:5px;background:linear-gradient(90deg,#3a3550,var(--gold) 50%,#3a3550)}
+  .gauge-mid{position:absolute;top:12px;left:50%;width:1px;height:21px;background:var(--ink-faint);transform:translateX(-.5px)}
+  .gauge-needle{position:absolute;top:8px;width:2px;height:29px;background:var(--gold-soft);box-shadow:0 0 10px var(--gold);border-radius:2px;transition:left .7s cubic-bezier(.2,.8,.2,1)}
+  .gauge-labels{position:absolute;top:30px;left:0;right:0;display:flex;justify-content:space-between;font-size:10px;color:var(--ink-faint)}
+  @keyframes wob{0%,100%{transform:translateX(-1px) rotate(-3deg)}50%{transform:translateX(-1px) rotate(3deg)}}
+  .gauge-needle.wob{animation:wob 1.6s ease-in-out infinite;transform-origin:bottom center}
+
+  /* toolbar */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px}
+  .tbtn{background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);border-radius:999px;padding:9px 16px;font-size:13px;cursor:pointer;transition:.15s;letter-spacing:.03em}
+  .tbtn:hover{border-color:var(--gold-deep);color:var(--gold-soft)}
+  .tbtn.primary{background:var(--gold);color:#1a1305;border-color:var(--gold);font-weight:600}
+  .tbtn.primary:hover{background:var(--gold-soft)}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--gold);color:#1a1305;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;transition:.3s;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.5);z-index:10}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* float explainer */
+  details.float-note{margin-top:24px;border-top:1px solid var(--line);padding-top:18px}
+  details.float-note summary{cursor:pointer;color:var(--gold-soft);font-size:13px;letter-spacing:.04em;list-style:none}
+  details.float-note summary::-webkit-details-marker{display:none}
+  details.float-note summary::before{content:"◆ ";color:var(--gold);font-size:10px}
+  details.float-note p{font-size:13px;color:var(--ink-dim);margin-top:10px;line-height:1.9}
+  details.float-note p b{color:var(--ink)}
+
+  footer{text-align:center;margin-top:34px;font-size:11px;color:var(--ink-faint);letter-spacing:.08em;line-height:2}
+  footer a{color:var(--ink-dim);text-decoration:none;border-bottom:1px solid var(--line)}
+  footer a:hover{color:var(--gold-soft)}
+  .sub-add{margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brandmark">Boolean → Float</div>
+    <h1>もやもやメーター</h1>
+    <p class="lead">白黒つけない、意思決定ツール。<br>もやもやを <b>0.0〜1.0</b> のスライダーでほぐす。</p>
+  </header>
+
+  <!-- 1. dilemma -->
+  <div class="card">
+    <div class="card-h"><span class="dot"></span><h2>いま、何にもやもやしてる？</h2></div>
+    <input id="title" class="dilemma" placeholder="例：転職する？ いまの会社に残る？" autocomplete="off">
+  </div>
+
+  <!-- 2. options -->
+  <div class="card">
+    <div class="card-h"><span class="dot"></span><h2>選択肢</h2></div>
+    <p class="hint">迷ってる選択肢。2〜6個まで。</p>
+    <div class="opts" id="opts"></div>
+    <div class="sub-add"><button class="add-btn" id="addOpt">＋ 選択肢を足す</button></div>
+  </div>
+
+  <!-- 3. criteria -->
+  <div class="card">
+    <div class="card-h"><span class="dot"></span><h2>判断の観点</h2></div>
+    <p class="hint">何を大事にして選ぶ？ 観点ごとに「重要度」と、各選択肢の「あてはまり具合」をスライダーで。チェックボックスじゃなく、連続量で。</p>
+    <div id="crits"></div>
+    <div class="sub-add"><button class="add-btn" id="addCrit">＋ 観点を足す</button></div>
+  </div>
+
+  <!-- 4. results -->
+  <div class="card" id="resultCard">
+    <div class="card-h"><span class="dot"></span><h2>メーター</h2></div>
+    <div id="results"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <!-- toolbar -->
+  <div class="toolbar">
+    <button class="tbtn primary" id="share">🔗 この問いを共有</button>
+    <button class="tbtn" id="reset">まっさらにする</button>
+  </div>
+
+  <details class="float-note">
+    <summary>なぜスライダー？ — Boolean→Float という考え方</summary>
+    <p>
+      ふつう「やる／やらない」「A／B」は <b>Boolean（二値・0か1）</b> で考えがち。でも本当の気持ちは、たいてい <b>0.62</b> とか <b>0.48</b> みたいな、あいだの値（Float）にある。<br><br>
+      このツールは、二択を <b>連続値（0.0〜1.0）</b> に置きなおす。観点ごとの重要度で重みづけして、選択肢それぞれのスコアを出す。<br><br>
+      そして大事なのは——<b>上位ふたつが僅差（0.05未満）なら、それは「決められない」んじゃなくて、もともと白黒つく問いじゃなかった</b>ということ。どっちでもいい。あるいは、混ぜる・保留するのが正解。0.5を、許していい。
+    </p>
+  </details>
+
+  <footer>
+    保存先はこのブラウザだけ（localStorage）。サーバーには何も送られません。<br>
+    <a href="https://osakenpiro.github.io/" target="_blank" rel="noopener">osakenpiro</a> ／ #全人類UX改善計画
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const SWATCHES = ["#d4a853","#7fae9e","#c98b8b","#8b9bc9","#bda0d0","#c9b86b"];
+const STORAGE_KEY = "moyamoya-v1";
+const uid = () => Math.random().toString(36).slice(2,8);
+
+let state = null;
+
+function defaultState(){
+  const oa=uid(), ob=uid();
+  return {
+    title:"",
+    options:[{id:oa,name:"転職する"},{id:ob,name:"いまの会社に残る"}],
+    criteria:[
+      {id:uid(),name:"お金",        weight:0.7, values:{[oa]:0.7,[ob]:0.45}},
+      {id:uid(),name:"やりがい",     weight:0.85,values:{[oa]:0.75,[ob]:0.5}},
+      {id:uid(),name:"生活リズム",   weight:0.6, values:{[oa]:0.4,[ob]:0.8}},
+      {id:uid(),name:"将来の成長",   weight:0.8, values:{[oa]:0.8,[ob]:0.45}},
+    ],
+  };
+}
+
+/* ---------- persistence ---------- */
+function save(){ try{localStorage.setItem(STORAGE_KEY, JSON.stringify(state));}catch(e){} }
+function loadLocal(){
+  try{const s=JSON.parse(localStorage.getItem(STORAGE_KEY)); if(s&&s.options&&s.criteria) return s;}catch(e){}
+  return null;
+}
+function loadFromHash(){
+  if(!location.hash || location.hash.length<3) return null;
+  try{
+    let raw=location.hash.slice(1);
+    try{ raw=decodeURIComponent(raw); }catch(e){}      // tolerate clients that %-encode the fragment
+    raw=raw.replace(/-/g,"+").replace(/_/g,"/");        // base64url -> base64
+    while(raw.length%4) raw+="=";                        // restore padding
+    const json=decodeURIComponent(escape(atob(raw)));
+    const s=JSON.parse(json);
+    if(s&&s.options&&s.criteria) return s;
+  }catch(e){}
+  return null;
+}
+function makeShareURL(){
+  const json=JSON.stringify(state);
+  const b64=btoa(unescape(encodeURIComponent(json)))
+    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");  // URL-safe (survives email/chat)
+  return location.origin+location.pathname+"#"+b64;
+}
+
+/* ---------- compute ---------- */
+function scoreOf(optId){
+  let wsum=0, acc=0;
+  for(const c of state.criteria){
+    const w=c.weight||0;
+    const v=(c.values[optId]!=null)?c.values[optId]:0;
+    wsum+=w; acc+=w*v;
+  }
+  if(wsum<=0){ // no weights → plain average so it still says something
+    if(!state.criteria.length) return null;
+    let s=0; for(const c of state.criteria) s+=(c.values[optId]||0);
+    return s/state.criteria.length;
+  }
+  return acc/wsum;
+}
+
+/* ---------- render ---------- */
+const $=s=>document.querySelector(s);
+function swatchFor(i){return SWATCHES[i%SWATCHES.length];}
+
+function renderOptions(){
+  const box=$("#opts"); box.innerHTML="";
+  state.options.forEach((o,i)=>{
+    const chip=document.createElement("div"); chip.className="opt-chip";
+    const sw=document.createElement("span"); sw.className="swatch"; sw.style.background=swatchFor(i);
+    const inp=document.createElement("input"); inp.value=o.name; inp.placeholder="選択肢"+(i+1);
+    inp.oninput=()=>{o.name=inp.value; save(); renderResults();};
+    chip.append(sw,inp);
+    if(state.options.length>2){
+      const x=document.createElement("button"); x.className="opt-x"; x.textContent="×"; x.title="削除";
+      x.onclick=()=>{state.options.splice(i,1); state.criteria.forEach(c=>delete c.values[o.id]); persistRenderAll();};
+      chip.append(x);
+    }
+    box.append(chip);
+  });
+  $("#addOpt").disabled = state.options.length>=6;
+}
+
+function renderCrits(){
+  const box=$("#crits"); box.innerHTML="";
+  if(!state.criteria.length){
+    const e=document.createElement("p"); e.className="hint"; e.textContent="観点がまだありません。「＋ 観点を足す」から、大事にしたいことを入れてみて。";
+    box.append(e);
+  }
+  state.criteria.forEach((c,ci)=>{
+    const card=document.createElement("div"); card.className="crit";
+    // top: name + delete
+    const top=document.createElement("div"); top.className="crit-top";
+    const name=document.createElement("input"); name.className="crit-name"; name.value=c.name; name.placeholder="観点（例：お金・やりがい）";
+    name.oninput=()=>{c.name=name.value; save(); renderResults();};
+    const del=document.createElement("button"); del.className="crit-del"; del.textContent="✕"; del.title="この観点を削除";
+    del.onclick=()=>{state.criteria.splice(ci,1); persistRenderAll();};
+    top.append(name,del);
+    card.append(top);
+    // weight
+    const wr=document.createElement("div"); wr.className="weight-row";
+    const wl=document.createElement("label"); wl.textContent="重要度";
+    const ws=document.createElement("input"); ws.type="range"; ws.min=0; ws.max=1; ws.step=0.01; ws.value=c.weight;
+    const wv=document.createElement("span"); wv.className="wval"; wv.textContent=Number(c.weight).toFixed(2);
+    ws.oninput=()=>{c.weight=parseFloat(ws.value); wv.textContent=c.weight.toFixed(2); save(); renderResults();};
+    wr.append(wl,ws,wv);
+    card.append(wr);
+    // per-option value sliders
+    state.options.forEach((o,oi)=>{
+      if(c.values[o.id]==null) c.values[o.id]=0.5;
+      const cell=document.createElement("div"); cell.className="cell";
+      const ct=document.createElement("div"); ct.className="cell-top";
+      const cn=document.createElement("span"); cn.className="cell-name";
+      const sw=document.createElement("span"); sw.className="swatch"; sw.style.background=swatchFor(oi);
+      cn.append(sw, document.createTextNode(o.name||("選択肢"+(oi+1))));
+      const cv=document.createElement("span"); cv.className="cell-val"; cv.textContent=Number(c.values[o.id]).toFixed(2);
+      ct.append(cn,cv);
+      const sl=document.createElement("input"); sl.type="range"; sl.min=0; sl.max=1; sl.step=0.01; sl.value=c.values[o.id];
+      sl.oninput=()=>{c.values[o.id]=parseFloat(sl.value); cv.textContent=c.values[o.id].toFixed(2); save(); renderResults();};
+      const ends=document.createElement("div"); ends.className="ends";
+      ends.innerHTML="<span>あてはまらない 0.0</span><span>1.0 ぴったり</span>";
+      cell.append(ct,sl,ends);
+      card.append(cell);
+    });
+    box.append(card);
+  });
+}
+
+function renderResults(){
+  const box=$("#results"); box.innerHTML="";
+  const scored=state.options.map((o,i)=>({o,i,s:scoreOf(o.id)}));
+  const valid=scored.filter(x=>x.s!=null);
+  if(!valid.length){
+    box.innerHTML='<p class="hint">観点を足すと、ここにスコアが出ます。</p>';
+    $("#verdict").style.display="none";
+    return;
+  }
+  const max=Math.max(...valid.map(x=>x.s));
+  const sorted=[...scored].sort((a,b)=>(b.s||0)-(a.s||0));
+  sorted.forEach(x=>{
+    const row=document.createElement("div"); row.className="res-row";
+    if(x.s!=null && Math.abs(x.s-max)<1e-9 && max>0) row.classList.add("win");
+    const head=document.createElement("div"); head.className="res-head";
+    const nm=document.createElement("span"); nm.className="res-name";
+    const sw=document.createElement("span"); sw.className="swatch"; sw.style.background=swatchFor(x.i);
+    nm.append(sw, document.createTextNode(x.o.name||("選択肢"+(x.i+1))));
+    const sc=document.createElement("span"); sc.className="res-score"; sc.textContent=x.s!=null?x.s.toFixed(2):"—";
+    head.append(nm,sc);
+    const meter=document.createElement("div"); meter.className="meter";
+    const fill=document.createElement("div"); fill.className="meter-fill"; fill.style.width=((x.s||0)*100).toFixed(1)+"%";
+    meter.append(fill);
+    row.append(head,meter);
+    box.append(row);
+  });
+  renderVerdict(sorted.filter(x=>x.s!=null));
+}
+
+function renderVerdict(sorted){
+  const v=$("#verdict"); v.style.display="block";
+  if(sorted.length<2){ v.innerHTML='<div class="sub">選択肢が2つ以上になると、ここに判定が出ます。</div>'; return; }
+  const top=sorted[0], second=sorted[1];
+  const gap=top.s-second.s;
+  let tag,msg,sub,gauge="";
+  if(gap>=0.15){
+    tag="白黒、ついた";
+    msg="「"+(top.o.name||"いちばん")+"」が明確にリード。";
+    sub="差は "+gap.toFixed(2)+"。これは迷わなくていい。決めて、進もう。";
+  }else if(gap>=0.05){
+    tag="ほぼ互角";
+    msg="「"+(top.o.name||"上位")+"」がわずかに前。でも僅差。";
+    sub="差は "+gap.toFixed(2)+"。最後は気持ちで決めていい範囲。どっちを選んでも大きくは外さない。";
+  }else{
+    tag="これは Float な問い";
+    msg="白黒つく問いじゃなかった。";
+    sub="差は "+gap.toFixed(2)+"。どっちでもいい — か、<b>混ぜる・保留する</b>のが正解かも。0.5を、許そう。";
+    const mid=(top.s+second.s)/2;
+    const pos=Math.max(8,Math.min(92,mid*100));
+    gauge='<div class="gauge"><div class="gauge-track"></div><div class="gauge-mid"></div>'+
+      '<div class="gauge-needle wob" style="left:'+pos.toFixed(1)+'%"></div>'+
+      '<div class="gauge-labels"><span>0.0</span><span>0.5</span><span>1.0</span></div></div>';
+  }
+  v.innerHTML='<div class="tag">'+tag+'</div>'+gauge+'<div class="msg">'+msg+'</div><div class="sub">'+sub+'</div>';
+}
+
+function persistRenderAll(){ save(); renderOptions(); renderCrits(); renderResults(); }
+
+/* ---------- events ---------- */
+function bind(){
+  $("#title").oninput=e=>{state.title=e.target.value; save();};
+  $("#addOpt").onclick=()=>{
+    if(state.options.length>=6) return;
+    const id=uid(); state.options.push({id,name:""});
+    state.criteria.forEach(c=>c.values[id]=0.5);
+    persistRenderAll();
+  };
+  $("#addCrit").onclick=()=>{
+    const c={id:uid(),name:"",weight:0.5,values:{}};
+    state.options.forEach(o=>c.values[o.id]=0.5);
+    state.criteria.push(c); save(); renderCrits(); renderResults();
+  };
+  $("#share").onclick=async()=>{
+    const url=makeShareURL();
+    try{ await navigator.clipboard.writeText(url); toast("共有リンクをコピーしました"); }
+    catch(e){ history.replaceState(null,"","#"+makeShareURL().split("#")[1]); toast("URLに状態を埋めました（コピーは手動で）"); }
+    history.replaceState(null,"","#"+url.split("#")[1]);
+  };
+  $("#reset").onclick=()=>{
+    if(!confirm("いまのもやもやを消して、まっさらにする？")) return;
+    state=defaultState(); state.options=[{id:uid(),name:""},{id:uid(),name:""}];
+    state.criteria=[];
+    // give one empty criterion to start
+    const c={id:uid(),name:"",weight:0.5,values:{}}; state.options.forEach(o=>c.values[o.id]=0.5); state.criteria.push(c);
+    history.replaceState(null,"",location.pathname);
+    persistRenderAll(); $("#title").value=""; state.title="";
+  };
+}
+
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+/* ---------- init ---------- */
+funct
