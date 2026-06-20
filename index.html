@@ -463,4 +463,14 @@ function toast(msg){
 }
 
 /* ---------- init ---------- */
-funct
+function init(){
+  state = loadFromHash() || loadLocal() || defaultState();
+  // ensure every criterion has a value for every option
+  state.criteria.forEach(c=>state.options.forEach(o=>{if(c.values[o.id]==null)c.values[o.id]=0.5;}));
+  $("#title").value=state.title||"";
+  renderOptions(); renderCrits(); renderResults(); bind(); save();
+}
+init();
+</script>
+</body>
+</html>
